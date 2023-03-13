@@ -56,7 +56,7 @@ install:
 	fi
 	@echo "Install plugins and filetypes ..."
 	@cp -r $(ROOT_DIR)/ftplugin $(ROOT_DIR)/$(VIM_DIR)
-	@vim +'PlugInstall' +'qall'
+	@vim +'PlugInstall --sync' +'qall'
 	ln -sf $(ROOT_DIR)/$(VIM_DIR) $(USER_HOME_DIR)/$(VIM_DIR)
 	ln -sf $(ROOT_DIR)/$(VIMRC) $(USER_HOME_DIR)/$(VIMRC)
 
