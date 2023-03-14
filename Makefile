@@ -1,14 +1,10 @@
 # Get the (root) directory where Makefile is located
-#   - "-P" option of cd
-#      Enter the physical directory directly without following symbolic links
-#  - $MAKEFILE_LIST:
-#    - https://ftp.gnu.org/old-gnu/Manuals/make-3.80/html_node/make_17.html
-#  - lastword:
-#    - Extract the last word of names.
-#    - https://www.gnu.org/software/make/manual/html_node/Quick-Reference.html
-ROOT_DIR := $(shell cd -P $(dir $(lastword $(MAKEFILE_LIST))) ; pwd)
+ROOT_DIR := $(shell pwd)
+
+CURRENT_DATE := $(shell date +'%Y%m%d-%H%M')
 
 USER_HOME_DIR	:= ~
+USER_CONFIG_DIR := $(USER_HOME_DIR)/.thwi885
 VIM_DIR			:= .vim
 VIM_DIR_FOLDERS	:= 'autoload' 'backup' 'plugged' 'tmp' 'undo'
 VIMRC			:= .vimrc
@@ -16,12 +12,10 @@ VIMRC			:= .vimrc
 # - Phony Targets:
 #   - "A phony target is one that is not really the name of a file"
 #   - https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
-PHONY: all clean help install targets
-.DEFAULT_GOAL := all
+PHONY: clean debug help install targets
+.DEFAULT_GOAL := install
 
-all: clean install
-
-clean:
+clean: preserve-history
 	@echo "################################################################################"
 	@echo "Delete $(ROOT_DIR)/$(VIM_DIR) ..."
 	@rm -rf $(ROOT_DIR)/$(VIM_DIR)
@@ -32,9 +26,11 @@ clean:
 debug:
 	@echo "ROOT_DIR: $(ROOT_DIR)"
 	@echo "USER_HOME_DIR: $(USER_HOME_DIR)"
+	@echo "USER_CONFIG_DIR: $(USER_CONFIG_DIR)"
 	@echo "VIM_DIR: $(VIM_DIR)"
 	@echo "VIM_DIR_FOLDERS: $(VIM_DIR_FOLDERS)"
 	@echo "VIMRC: $(VIMRC)"
+	@echo "CURRENT_DATE: $(CURRENT_DATE)"
 	@echo "MAKEFILE_LIST: $(MAKEFILE_LIST)"
 	@echo "lastword MAKEFILE_LIST: $(lastword $(MAKEFILE_LIST))"
 	@echo "dir lastword MAKEFILE_LIST: $(dir $(lastword $(MAKEFILE_LIST)))"
@@ -43,23 +39,27 @@ debug:
 # plugins are not required at executing the "PlugInstall" command, the "gruvbox"
 # plugin blocks the command execution if it isn't available. Therefore it will
 # downloaded "manually" directly from github.
-install:
+install: clean
 	@echo "################################################################################"
 	@echo "Prepare .vim folder structure ..."
 	@mkdir -p -m 750 $(addprefix $(ROOT_DIR)/$(VIM_DIR)/,$(VIM_DIR_FOLDERS))
 	@echo "Download plug.vim ..."
 	@curl -sfLo $(ROOT_DIR)/$(VIM_DIR)/autoload/plug.vim \
 		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-	@if [ ! -d $(ROOT_DIR)/$(VIM_DIR)/plugged/gruvbox ]; then \
-		echo "Download gruvbox ..."; \
-		git clone --quiet https://github.com/morhetz/gruvbox $(ROOT_DIR)/$(VIM_DIR)/plugged/gruvbox ;\
-	fi
+	@echo "Download gruvbox ..."
+	@git clone --quiet https://github.com/morhetz/gruvbox $(ROOT_DIR)/$(VIM_DIR)/plugged/gruvbox
 	@echo "Install plugins and filetypes ..."
 	@cp -r $(ROOT_DIR)/ftplugin $(ROOT_DIR)/$(VIM_DIR)
-	@vim +'PlugInstall --sync' +'qall'
 	ln -sf $(ROOT_DIR)/$(VIM_DIR) $(USER_HOME_DIR)/$(VIM_DIR)
 	ln -sf $(ROOT_DIR)/$(VIMRC) $(USER_HOME_DIR)/$(VIMRC)
-
+	@vim -c 'PlugInstall --sync' -c 'qa'
+	@if [ -d $(ROOT_DIR)/$(CURRENT_DATE)-$(VIM_DIR) ]; then \
+		echo "################################################################################";\
+		echo "Restore .vim/undo and .vim/backup folder ...";\
+		cp -r $(ROOT_DIR)/$(CURRENT_DATE)-$(VIM_DIR)/undo  $(ROOT_DIR)/$(VIM_DIR);\
+		cp -r $(ROOT_DIR)/$(CURRENT_DATE)-$(VIM_DIR)/backup  $(ROOT_DIR)/$(VIM_DIR);\
+		rm -rf $(ROOT_DIR)/$(CURRENT_DATE)-$(VIM_DIR);\
+	fi
 
 help targets: help-common
 
@@ -79,3 +79,10 @@ help-common:
 	@echo "#                - Installs vim plugins"
 	@echo "# > help         - this target list (default target)"
 	@echo "# > targets      - this target list (default target)"
+
+preserve-history:
+	@echo "################################################################################"
+	@if [ -d $(ROOT_DIR)/$(VIM_DIR) ]; then \
+		echo "Preserve .vim folder ...";\
+		mv $(ROOT_DIR)/$(VIM_DIR) $(ROOT_DIR)/$(CURRENT_DATE)-$(VIM_DIR);\
+	fi
